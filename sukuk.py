@@ -582,35 +582,94 @@ def create_sheet(wb, sheet_name, sheet_config):
         col_letter = get_col_letter(9 + i)
         ws[f'{col_letter}53'] = f'={col_letter}16/{col_letter}52'
     
-    # Define the rows we want to create (avoiding 54-73 and 78-113)
-    rows_to_create = {
-        74: ("MVF (Scaled Value)", "MVF (Scaled Value)", "MVF (Scaled Value)", "=I43/32000"),
-        75: ("Tax Contribution Scalled", "Tax Contribution Scalled", "Tax Contribution Scalled", "=I11/1700"),
-        76: ("T.C", "T.C", "T.C", "=I75"),
-        114: ("Share Capital", "SHARE CAPITAL", "Equity %", "=I18/I21*100"),
-        115: ("Market value of debt", "TOTAL DEBT", "Debt %", "=I19/I21*100"),
-        116: ("Market value of sukuk", "TOTAL SUKUK", "Sukuk %", "=I20/I21*100"),
-        117: ("Total Assets", "TOTAL ASSETS", "Total Assets %", "=I114+I115+I116"),
-        119: ("Share Capital", "SHARE CAPITAL", "Equity %", "=I114"),
-        120: ("Market value of debt", "TOTAL DEBT", "Debt %", "=I115"),
-        121: ("Market value of sukuk", "TOTAL SUKUK", "Sukuk %", "=I116"),
-        122: ("Total Assets", "TOTAL ASSETS", "Total Assets %", "=I117")
-    }
+    # Create the additional calculation rows (74-76, 114-122) with dynamic formulas
+    # Row 74: MVF (Scaled Value)
+    ws['A74'] = "MVF (Scaled Value)"
+    ws['G74'] = "MVF (Scaled Value)"
+    ws['H74'] = "MVF (Scaled Value)"
+    for i in range(n_iter):
+        col_letter = get_col_letter(9 + i)
+        ws[f'{col_letter}74'] = f'={col_letter}43/32000'
     
-    # Create only the specific rows we want
-    for row_num, (label_a, label_g, label_h, formula) in rows_to_create.items():
-        ws[f'A{row_num}'] = label_a
-        ws[f'G{row_num}'] = label_g
-        ws[f'H{row_num}'] = label_h
-        
-        # Add formulas for all iterations
-        for i in range(n_iter):
-            col_letter = get_col_letter(9 + i)
-            if formula.startswith('='):
-                ws[f'{col_letter}{row_num}'] = formula
-            else:
-                # Handle special cases like =I75
-                ws[f'{col_letter}{row_num}'] = formula
+    # Row 75: Tax Contribution Scalled
+    ws['A75'] = "Tax Contribution Scalled"
+    ws['G75'] = "Tax Contribution Scalled"
+    ws['H75'] = "Tax Contribution Scalled"
+    for i in range(n_iter):
+        col_letter = get_col_letter(9 + i)
+        ws[f'{col_letter}75'] = f'={col_letter}11/1700'
+    
+    # Row 76: T.C
+    ws['A76'] = "T.C"
+    ws['G76'] = "T.C"
+    ws['H76'] = "T.C"
+    for i in range(n_iter):
+        col_letter = get_col_letter(9 + i)
+        ws[f'{col_letter}76'] = f'={col_letter}75'
+    
+    # Row 114: Share Capital %
+    ws['A114'] = "Share Capital"
+    ws['G114'] = "SHARE CAPITAL"
+    ws['H114'] = "Equity %"
+    for i in range(n_iter):
+        col_letter = get_col_letter(9 + i)
+        ws[f'{col_letter}114'] = f'={col_letter}18/{col_letter}21*100'
+    
+    # Row 115: Market value of debt %
+    ws['A115'] = "Market value of debt"
+    ws['G115'] = "TOTAL DEBT"
+    ws['H115'] = "Debt %"
+    for i in range(n_iter):
+        col_letter = get_col_letter(9 + i)
+        ws[f'{col_letter}115'] = f'={col_letter}19/{col_letter}21*100'
+    
+    # Row 116: Market value of sukuk %
+    ws['A116'] = "Market value of sukuk"
+    ws['G116'] = "TOTAL SUKUK"
+    ws['H116'] = "Sukuk %"
+    for i in range(n_iter):
+        col_letter = get_col_letter(9 + i)
+        ws[f'{col_letter}116'] = f'={col_letter}20/{col_letter}21*100'
+    
+    # Row 117: Total Assets %
+    ws['A117'] = "Total Assets"
+    ws['G117'] = "TOTAL ASSETS"
+    ws['H117'] = "Total Assets %"
+    for i in range(n_iter):
+        col_letter = get_col_letter(9 + i)
+        ws[f'{col_letter}117'] = f'={col_letter}114+{col_letter}115+{col_letter}116'
+    
+    # Row 119: Share Capital % (duplicate)
+    ws['A119'] = "Share Capital"
+    ws['G119'] = "SHARE CAPITAL"
+    ws['H119'] = "Equity %"
+    for i in range(n_iter):
+        col_letter = get_col_letter(9 + i)
+        ws[f'{col_letter}119'] = f'={col_letter}114'
+    
+    # Row 120: Market value of debt % (duplicate)
+    ws['A120'] = "Market value of debt"
+    ws['G120'] = "TOTAL DEBT"
+    ws['H120'] = "Debt %"
+    for i in range(n_iter):
+        col_letter = get_col_letter(9 + i)
+        ws[f'{col_letter}120'] = f'={col_letter}115'
+    
+    # Row 121: Market value of sukuk % (duplicate)
+    ws['A121'] = "Market value of sukuk"
+    ws['G121'] = "TOTAL SUKUK"
+    ws['H121'] = "Sukuk %"
+    for i in range(n_iter):
+        col_letter = get_col_letter(9 + i)
+        ws[f'{col_letter}121'] = f'={col_letter}116'
+    
+    # Row 122: Total Assets % (duplicate)
+    ws['A122'] = "Total Assets"
+    ws['G122'] = "TOTAL ASSETS"
+    ws['H122'] = "Total Assets %"
+    for i in range(n_iter):
+        col_letter = get_col_letter(9 + i)
+        ws[f'{col_letter}122'] = f'={col_letter}117'
     
     # Now add row grouping and collapse the empty ranges to match original sheet format
     # Group and collapse rows 54-73 (empty range)
@@ -731,7 +790,7 @@ for sheet_name, config in sheet_configs.items():
     create_sheet(wb, sheet_name, config)
 
 # Save the workbook
-output_file = 'sukuk_corrected_ks_1000_iterations.xlsx'
+output_file = 'sukuk_analysis_1000_iterations.xlsx'
 wb.save(output_file)
 
 print(f"\nExcel file with all sheets and 1000 iterations saved as {output_file}")
