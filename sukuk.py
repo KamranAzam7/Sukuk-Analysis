@@ -153,19 +153,34 @@ def create_sheet(wb, sheet_name, sheet_config):
     ws['A14'] = "EARNING AVAILABLE FOR SUKUK HOLDERS"
     ws['G14'] = "EARNING AVAILABLE FOR SUKUK HOLDERS"
     ws['H14'] = "RENT IF AFTER TAX"
-    # Formula: =I31*I20 (ks -sheet_name * Market value of sukuk)
-    for i in range(n_iter):
-        col_letter = get_col_letter(9 + i)
-        ws[f'{col_letter}14'] = f'={col_letter}31*{col_letter}20'
+    
+    # For RTS-L and RTS-ZL: Row 14 should be blank
+    if sheet_name not in ['RTS-L', 'RTS-ZL']:
+        # Formula: =I31*I20 (ks -sheet_name * Market value of sukuk)
+        for i in range(n_iter):
+            col_letter = get_col_letter(9 + i)
+            ws[f'{col_letter}14'] = f'={col_letter}31*{col_letter}20'
+    # For RTS-L and RTS-ZL, leave Row 14 blank (empty cells)
     
     # Row 15: EARNING AVAILABLE FOR SHAREHOLDERS
     ws['A15'] = "EARNING AVAILABLE FOR SHAREHOLDERS"
     ws['G15'] = "EARNING AVAILABLE FOR SHAREHOLDERS"
     ws['H15'] = "DIVIDEND IF AFTER TAX"
-    # Formula: =I12-I13-I14 (EAT - Interest after tax - Rent after tax)
-    for i in range(n_iter):
-        col_letter = get_col_letter(9 + i)
-        ws[f'{col_letter}15'] = f'={col_letter}12-{col_letter}13-{col_letter}14'
+    
+    # Different formulas based on sheet type
+    if sheet_name == 'DTS-ZL':
+        # For DTS-ZL only: I15 = I12-I13-I14+I9, J15 = J12-J13-J14+J9, etc.
+        for i in range(n_iter):
+            col_letter = get_col_letter(9 + i)
+            ws[f'{col_letter}15'] = f'={col_letter}12-{col_letter}13-{col_letter}14+{col_letter}9'
+    elif sheet_name in ['(DTS+RTS)-L', '(DTS+RTS)-ZL']:
+        # For (DTS+RTS)-L and (DTS+RTS)-ZL: Row 15 should be blank (empty)
+        pass  # Leave Row 15 blank (no formulas)
+    else:
+        # Formula: =I12-I13-I14 (EAT - Interest after tax - Rent after tax)
+        for i in range(n_iter):
+            col_letter = get_col_letter(9 + i)
+            ws[f'{col_letter}15'] = f'={col_letter}12-{col_letter}13-{col_letter}14'
     
     # Row 16: Dividend PAID
     ws['A16'] = "Dividend PAID"
@@ -217,11 +232,13 @@ def create_sheet(wb, sheet_name, sheet_config):
     # Row 18: Share Capital
     ws['A18'] = "Share Capital"
     ws['H18'] = "EQUITY"
-    # Decreasing over time: start at 30000, decrease to 24500 (so sum with rows 19+20 = 70000)
-    for i in range(n_iter):
+    # Set initial value I18 = 30000, then cascading: J18=I18-10.5, K18=J18-10.5, etc.
+    col_letter_i = get_col_letter(9)  # Column I
+    ws[f'{col_letter_i}18'] = 30000  # Initial value
+    for i in range(1, n_iter):  # Start from J column (i=1)
         col_letter = get_col_letter(9 + i)
-        value = 30000 - (5500 * i / (n_iter - 1))
-        ws[f'{col_letter}18'] = value
+        prev_col_letter = get_col_letter(9 + i - 1)
+        ws[f'{col_letter}18'] = f'={prev_col_letter}18-10.5'
     
     # Row 19: Market value of debt - KEY DIFFERENCE FOR -ZL SHEETS
     ws['A19'] = "Market value of debt"
@@ -230,17 +247,18 @@ def create_sheet(wb, sheet_name, sheet_config):
     ws['G19'] = "TOTAL DEBT"
     ws['H19'] = "DEBT"
     
+    col_letter_i = get_col_letter(9)  # Column I
     if sheet_config.get('zero_debt', False):
-        # -ZL sheets: debt = 0
-        for i in range(n_iter):
-            col_letter = get_col_letter(9 + i)
-            ws[f'{col_letter}19'] = 0
+        # -ZL sheets: I19 = 0, then blank for J19 onwards
+        ws[f'{col_letter_i}19'] = 0
+        # Leave J19 onwards blank (empty)
     else:
-        # -L sheets: decreasing debt from 40000 to 0
-        for i in range(n_iter):
+        # -L sheets: I19 = 40000, then cascading: J19=I19-40, K19=J19-40, etc.
+        ws[f'{col_letter_i}19'] = 40000  # Initial value
+        for i in range(1, n_iter):  # Start from J column (i=1)
             col_letter = get_col_letter(9 + i)
-            value = 40000 - (40000 * i / (n_iter - 1))
-            ws[f'{col_letter}19'] = value
+            prev_col_letter = get_col_letter(9 + i - 1)
+            ws[f'{col_letter}19'] = f'={prev_col_letter}19-40'
     
     # Row 20: Market value of sukuk
     ws['A20'] = "Market value of sukuk"
@@ -249,15 +267,22 @@ def create_sheet(wb, sheet_name, sheet_config):
     ws['F20'] = 2000
     ws['G20'] = "TOTAL SUKUK"
     ws['H20'] = "SUKUK"
-    # Increasing over time: start at 0, increase to 45500 (so sum with rows 18+19 = 70000)
-    for i in range(n_iter):
-        col_letter = get_col_letter(9 + i)
-        if sheet_config.get('zero_debt', False):
-            # For -ZL sheets, sukuk needs to be higher to maintain total of 70000
-            value = 40000 + (5500 * i) / (n_iter - 1)
-        else:
-            value = (45500 * i) / (n_iter - 1)
-        ws[f'{col_letter}20'] = value
+    
+    col_letter_i = get_col_letter(9)  # Column I
+    if sheet_config.get('zero_debt', False):
+        # -ZL sheets: I20 = 40000, then cascading: J20=I20+10.5, K20=J20+10.5, etc.
+        ws[f'{col_letter_i}20'] = 40000  # Initial value
+        for i in range(1, n_iter):  # Start from J column (i=1)
+            col_letter = get_col_letter(9 + i)
+            prev_col_letter = get_col_letter(9 + i - 1)
+            ws[f'{col_letter}20'] = f'={prev_col_letter}20+10.5'
+    else:
+        # -L sheets: I20 = 0, then cascading: J20=I20+50.5, K20=J20+50.5, etc.
+        ws[f'{col_letter_i}20'] = 0  # Initial value
+        for i in range(1, n_iter):  # Start from J column (i=1)
+            col_letter = get_col_letter(9 + i)
+            prev_col_letter = get_col_letter(9 + i - 1)
+            ws[f'{col_letter}20'] = f'={prev_col_letter}20+50.5'
     
     # Row 21: Total Assets
     ws['A21'] = "Total Assets"
@@ -412,24 +437,57 @@ def create_sheet(wb, sheet_name, sheet_config):
     # Row 32: ks+g
     ws['H32'] = "ks+g"
     
+    # Different formulas based on sheet type
+    if sheet_name in ['RTS-L', 'RTS-ZL', 'DTS-ZL', '(DTS+RTS)-L', '(DTS+RTS)-ZL']:
+        # For RTS-L, RTS-ZL, DTS-ZL, (DTS+RTS)-L, and (DTS+RTS)-ZL: I32 = I31*0.65, J32 = J31*0.65, etc.
+        for i in range(n_iter):
+            col_letter = get_col_letter(9 + i)
+            ws[f'{col_letter}32'] = f'={col_letter}31*0.65'
+    
     # Row 33: ke -sheet_name
     ws['A33'] = f"ke -{sheet_name}"
     ws['C33'] = "Ke"
     ws['G33'] = "Ke"
     ws['H33'] = f"ke -{sheet_name}"
-    # Formula pattern: I33=I16/I18, J33=J16/J18, K33=K16/K18, etc.
-    for i in range(n_iter):
-        col_letter = get_col_letter(9 + i)
-        ws[f'{col_letter}33'] = f'={col_letter}16/{col_letter}18'
+    
+    # Different formulas based on sheet type
+    if sheet_name in ['DTS-L', 'DTS-ZL', '(DTS+RTS)-L', '(DTS+RTS)-ZL']:
+        # For DTS-L, DTS-ZL, (DTS+RTS)-L, and (DTS+RTS)-ZL: I33 = I9/I18, J33 = J9/J18, etc.
+        for i in range(n_iter):
+            col_letter = get_col_letter(9 + i)
+            ws[f'{col_letter}33'] = f'={col_letter}9/{col_letter}18'
+    else:
+        # Formula pattern: I33=I16/I18, J33=J16/J18, K33=K16/K18, etc.
+        for i in range(n_iter):
+            col_letter = get_col_letter(9 + i)
+            ws[f'{col_letter}33'] = f'={col_letter}16/{col_letter}18'
     
     # Row 34: ko
     ws['A34'] = "ko"
     ws['G34'] = "ko"
     ws['H34'] = "ko"
-    # Formula: =(I30*I39)+(I31*I40)+(I33*I41) (and similar for other columns)
-    for i in range(n_iter):
-        col_letter = get_col_letter(9 + i)
-        ws[f'{col_letter}34'] = f'=({col_letter}30*{col_letter}39)+({col_letter}31*{col_letter}40)+({col_letter}33*{col_letter}41)'
+    
+    # Different formulas based on sheet type
+    if sheet_name in ['RTS-L', 'RTS-ZL']:
+        # For RTS-L and RTS-ZL: I34 = (I30*I39)+(I36*I40)+(I33*I41), ...
+        for i in range(n_iter):
+            col_letter = get_col_letter(9 + i)
+            ws[f'{col_letter}34'] = f'=({col_letter}30*{col_letter}39)+({col_letter}36*{col_letter}40)+({col_letter}33*{col_letter}41)'
+    elif sheet_name in ['DTS-L', 'DTS-ZL']:
+        # For DTS-L and DTS-ZL: I34 = (I30*I39)+(I31*I40)+(I37*I41), ...
+        for i in range(n_iter):
+            col_letter = get_col_letter(9 + i)
+            ws[f'{col_letter}34'] = f'=({col_letter}30*{col_letter}39)+({col_letter}31*{col_letter}40)+({col_letter}37*{col_letter}41)'
+    elif sheet_name in ['(DTS+RTS)-L', '(DTS+RTS)-ZL']:
+        # For (DTS+RTS)-L and (DTS+RTS)-ZL: I34 = (I30*I39)+(I36*I40)+(I37*I41), ...
+        for i in range(n_iter):
+            col_letter = get_col_letter(9 + i)
+            ws[f'{col_letter}34'] = f'=({col_letter}30*{col_letter}39)+({col_letter}36*{col_letter}40)+({col_letter}37*{col_letter}41)'
+    else:
+        # Formula: =(I30*I39)+(I31*I40)+(I33*I41) (and similar for other columns)
+        for i in range(n_iter):
+            col_letter = get_col_letter(9 + i)
+            ws[f'{col_letter}34'] = f'=({col_letter}30*{col_letter}39)+({col_letter}31*{col_letter}40)+({col_letter}33*{col_letter}41)'
     
     # Row 35: Formula =I30*I23, =J30*J23, =K30*K23, etc.
     for i in range(n_iter):
@@ -440,10 +498,18 @@ def create_sheet(wb, sheet_name, sheet_config):
     ws['A36'] = "ks with tax shield"
     ws['G36'] = "ks (1-Tr)"
     ws['H36'] = "ks with tax shield"
-    # Formula: =I31*I23, =J31*J23, =K31*K23, etc.
-    for i in range(n_iter):
-        col_letter = get_col_letter(9 + i)
-        ws[f'{col_letter}36'] = f'={col_letter}31*{col_letter}23'
+    
+    # Different formulas based on sheet type
+    if sheet_name in ['RTS-L', 'RTS-ZL', 'DTS-ZL', '(DTS+RTS)-L', '(DTS+RTS)-ZL']:
+        # For RTS-L, RTS-ZL, DTS-ZL, (DTS+RTS)-L, and (DTS+RTS)-ZL: I36 = I32*I23, J36 = J32*J23, etc.
+        for i in range(n_iter):
+            col_letter = get_col_letter(9 + i)
+            ws[f'{col_letter}36'] = f'={col_letter}32*{col_letter}23'
+    else:
+        # Formula: =I31*I23, =J31*J23, =K31*K23, etc.
+        for i in range(n_iter):
+            col_letter = get_col_letter(9 + i)
+            ws[f'{col_letter}36'] = f'={col_letter}31*{col_letter}23'
     
     # Row 37: ke with tax shield
     ws['A37'] = "ke with tax shield"
@@ -547,7 +613,14 @@ def create_sheet(wb, sheet_name, sheet_config):
     ws['A49'] = "PV of Dividend SHIELD benefits of Equity"
     ws['G49'] = "PV of Dividend TAX SHIELD benefits of Equity"
     ws['H49'] = "PV of Dividend SHIELD benefits of Equity"
-    # Empty row - no formulas
+    
+    # Different formulas based on sheet type
+    if sheet_name in ['DTS-L', 'DTS-ZL', '(DTS+RTS)-L', '(DTS+RTS)-ZL']:
+        # For DTS-L, DTS-ZL, (DTS+RTS)-L, and (DTS+RTS)-ZL: I49 = I9*I22/I37, J49 = J9*J22/J37, etc.
+        for i in range(n_iter):
+            col_letter = get_col_letter(9 + i)
+            ws[f'{col_letter}49'] = f'={col_letter}9*{col_letter}22/{col_letter}37'
+    # For all other sheets, leave Row 49 empty (no formulas)
     
     # Row 50: PV of Bankruptcy Cost
     ws['A50'] = "PV of Bankruptcy Cost"
@@ -559,10 +632,28 @@ def create_sheet(wb, sheet_name, sheet_config):
     ws['A51'] = f"MVF-{sheet_name}"
     ws['G51'] = "MVF + Present Value of Tax Shield/Bc"
     ws['H51'] = f"MVF-{sheet_name}"
-    # Formula: =I43-I47, =J43-J47, =K43-K47, etc.
-    for i in range(n_iter):
-        col_letter = get_col_letter(9 + i)
-        ws[f'{col_letter}51'] = f'={col_letter}43-{col_letter}47'
+    
+    # Different formulas based on sheet type
+    if sheet_name in ['RTS-L', 'RTS-ZL']:
+        # For RTS-L and RTS-ZL: I51 = I43-I47+I48, J51 = J43-J47+J48, etc.
+        for i in range(n_iter):
+            col_letter = get_col_letter(9 + i)
+            ws[f'{col_letter}51'] = f'={col_letter}43-{col_letter}47+{col_letter}48'
+    elif sheet_name in ['DTS-L', 'DTS-ZL']:
+        # For DTS-L and DTS-ZL: I51 = I43-I47+I49, J51 = J43-J47+J49, etc.
+        for i in range(n_iter):
+            col_letter = get_col_letter(9 + i)
+            ws[f'{col_letter}51'] = f'={col_letter}43-{col_letter}47+{col_letter}49'
+    elif sheet_name in ['(DTS+RTS)-L', '(DTS+RTS)-ZL']:
+        # For (DTS+RTS)-L and (DTS+RTS)-ZL: I51 = I43-I47+I48+I49, J51 = J43-J47+J48+J49, etc.
+        for i in range(n_iter):
+            col_letter = get_col_letter(9 + i)
+            ws[f'{col_letter}51'] = f'={col_letter}43-{col_letter}47+{col_letter}48+{col_letter}49'
+    else:
+        # Formula: =I43-I47, =J43-J47, =K43-K47, etc.
+        for i in range(n_iter):
+            col_letter = get_col_letter(9 + i)
+            ws[f'{col_letter}51'] = f'={col_letter}43-{col_letter}47'
     
     # Row 52: No. of Shares Outstanding
     ws['A52'] = "No. of Shares Outstanding"
@@ -577,19 +668,36 @@ def create_sheet(wb, sheet_name, sheet_config):
     ws['A53'] = f"EPS-{sheet_name}"
     ws['G53'] = "EARNING PER SHARE"
     ws['H53'] = f"EPS-{sheet_name}"
-    # Formula: =I16/I52, =J16/J52, =K16/K52, etc.
-    for i in range(n_iter):
-        col_letter = get_col_letter(9 + i)
-        ws[f'{col_letter}53'] = f'={col_letter}16/{col_letter}52'
+    
+    # Different formulas based on sheet type
+    if sheet_name in ['DTS-L', 'DTS-ZL', '(DTS+RTS)-L', '(DTS+RTS)-ZL']:
+        # For DTS-L, DTS-ZL, (DTS+RTS)-L, and (DTS+RTS)-ZL: I53 = I9/I52, J53 = J9/J52, etc.
+        for i in range(n_iter):
+            col_letter = get_col_letter(9 + i)
+            ws[f'{col_letter}53'] = f'={col_letter}9/{col_letter}52'
+    else:
+        # Formula: =I16/I52, =J16/J52, =K16/K52, etc.
+        for i in range(n_iter):
+            col_letter = get_col_letter(9 + i)
+            ws[f'{col_letter}53'] = f'={col_letter}16/{col_letter}52'
     
     # Create the additional calculation rows (74-76, 114-122) with dynamic formulas
     # Row 74: MVF (Scaled Value)
     ws['A74'] = "MVF (Scaled Value)"
     ws['G74'] = "MVF (Scaled Value)"
     ws['H74'] = "MVF (Scaled Value)"
-    for i in range(n_iter):
-        col_letter = get_col_letter(9 + i)
-        ws[f'{col_letter}74'] = f'={col_letter}43/32000'
+    
+    # Different formulas based on sheet type
+    if sheet_name in ['RTS-L', 'RTS-ZL', 'DTS-L', 'DTS-ZL', '(DTS+RTS)-L', '(DTS+RTS)-ZL']:
+        # For RTS-L, RTS-ZL, DTS-L, DTS-ZL, (DTS+RTS)-L, and (DTS+RTS)-ZL: I74 = I51/32000, J74 = J51/32000, etc.
+        for i in range(n_iter):
+            col_letter = get_col_letter(9 + i)
+            ws[f'{col_letter}74'] = f'={col_letter}51/32000'
+    else:
+        # Formula: =I43/32000, =J43/32000, etc.
+        for i in range(n_iter):
+            col_letter = get_col_letter(9 + i)
+            ws[f'{col_letter}74'] = f'={col_letter}43/32000'
     
     # Row 75: Tax Contribution Scalled
     ws['A75'] = "Tax Contribution Scalled"
@@ -603,9 +711,26 @@ def create_sheet(wb, sheet_name, sheet_config):
     ws['A76'] = "T.C"
     ws['G76'] = "T.C"
     ws['H76'] = "T.C"
+    
+    # Different formulas based on sheet type
     for i in range(n_iter):
         col_letter = get_col_letter(9 + i)
-        ws[f'{col_letter}76'] = f'={col_letter}75'
+        
+        if sheet_name in ['ITS-L']:
+            # ITS-L: I76=I31+I33+I35, J76=J31+J33+J35, ...
+            ws[f'{col_letter}76'] = f'={col_letter}31+{col_letter}33+{col_letter}35'
+        elif sheet_name in ['RTS-L', 'RTS-ZL']:
+            # RTS-L and RTS-ZL: I76=I30+I33+I36, J76=J30+J33+J36, ...
+            ws[f'{col_letter}76'] = f'={col_letter}30+{col_letter}33+{col_letter}36'
+        elif sheet_name in ['DTS-L', 'DTS-ZL']:
+            # DTS-L and DTS-ZL: I76=I30+I31+I37, J76=J30+J31+J37, ...
+            ws[f'{col_letter}76'] = f'={col_letter}30+{col_letter}31+{col_letter}37'
+        elif sheet_name in ['(DTS+RTS)-L', '(DTS+RTS)-ZL']:
+            # (DTS+RTS)-L and (DTS+RTS)-ZL: I76=I30+I36+I37, J76=J30+J36+J37, ...
+            ws[f'{col_letter}76'] = f'={col_letter}30+{col_letter}36+{col_letter}37'
+        else:
+            # NTS-L, NTS-ZL, ITS-ZL: I76=I30+I31+I33, J76=J30+J31+J33, ...
+            ws[f'{col_letter}76'] = f'={col_letter}30+{col_letter}31+{col_letter}33'
     
     # Row 114: Share Capital %
     ws['A114'] = "Share Capital"
